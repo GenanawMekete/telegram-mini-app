@@ -3,297 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Awesome Mini App</title>
+    <title>Bingo Game</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }
-
-        body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            color: white;
-        }
-
-        .container {
-            max-width: 400px;
-            margin: 0 auto;
-            padding: 20px;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        header {
-            text-align: center;
-            margin-bottom: 30px;
-            padding: 20px 0;
-        }
-
-        header h1 {
-            font-size: 28px;
-            margin-bottom: 10px;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
-
-        .user-info {
-            background: rgba(255,255,255,0.2);
-            padding: 15px;
-            border-radius: 15px;
-            backdrop-filter: blur(10px);
-        }
-
-        #userPhoto {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            margin: 0 auto 10px;
-            display: block;
-            border: 3px solid white;
-        }
-
-        #userName {
-            font-size: 18px;
-            font-weight: 600;
-            text-align: center;
-        }
-
-        main {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .card {
-            background: rgba(255,255,255,0.95);
-            color: #333;
-            padding: 25px;
-            border-radius: 20px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-        }
-
-        .card h2 {
-            color: #667eea;
-            margin-bottom: 15px;
-            font-size: 20px;
-        }
-
-        .btn {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            padding: 15px 25px;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            width: 100%;
-            margin: 5px 0;
-            transition: transform 0.2s;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-        }
-
-        .btn-secondary {
-            background: rgba(255,255,255,0.9);
-            color: #667eea;
-            border: 2px solid #667eea;
-        }
-
-        .stats {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin: 20px 0;
-        }
-
-        .stat-item {
-            text-align: center;
-            padding: 15px;
-            background: rgba(102, 126, 234, 0.1);
-            border-radius: 12px;
-        }
-
-        .stat-number {
-            font-size: 24px;
-            font-weight: bold;
-            color: #667eea;
-        }
-
-        .stat-label {
-            font-size: 12px;
-            color: #666;
-            margin-top: 5px;
-        }
-
-        footer {
-            margin-top: 20px;
-            text-align: center;
-            color: rgba(255,255,255,0.8);
-            font-size: 14px;
-        }
-    </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>🎮 My Awesome Mini App</h1>
-            <div class="user-info">
-                <img id="userPhoto" src="" alt="User Photo" style="display: none;">
-                <div id="userName">Welcome! 👋</div>
+            <h1>🎯 Bingo Game</h1>
+            <div class="game-info">
+                <div class="player-info">
+                    <span id="playerName">Player</span>
+                </div>
+                <div class="score-board">
+                    <span>Games Won: <span id="gamesWon">0</span></span>
+                </div>
             </div>
         </header>
 
         <main>
-            <div class="card">
-                <h2>🚀 Quick Actions</h2>
-                <button class="btn" onclick="showAlert()">Click Me! 🎯</button>
-                <button class="btn btn-secondary" onclick="changeTheme()">Change Theme 🌈</button>
-                <button class="btn" onclick="showNotification()">Send Notification 📢</button>
+            <div class="game-controls">
+                <button id="newGameBtn" class="btn primary">New Game</button>
+                <button id="autoMarkBtn" class="btn secondary">Auto Mark</button>
+                <button id="resetBtn" class="btn danger">Reset</button>
             </div>
 
-            <div class="card">
-                <h2>📊 Your Stats</h2>
-                <div class="stats">
-                    <div class="stat-item">
-                        <div class="stat-number" id="clicksCount">0</div>
-                        <div class="stat-label">Clicks</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-number" id="visitsCount">1</div>
-                        <div class="stat-label">Visits</div>
-                    </div>
+            <div class="bingo-card">
+                <div class="bingo-header">
+                    <div class="bingo-letter">B</div>
+                    <div class="bingo-letter">I</div>
+                    <div class="bingo-letter">N</div>
+                    <div class="bingo-letter">G</div>
+                    <div class="bingo-letter">O</div>
+                </div>
+                <div class="bingo-grid" id="bingoGrid">
+                    <!-- Bingo cells will be generated here -->
                 </div>
             </div>
 
-            <div class="card">
-                <h2>🎮 Mini Game</h2>
-                <p>Guess the number between 1-10:</p>
-                <input type="number" id="guessInput" min="1" max="10" style="width: 100%; padding: 12px; margin: 10px 0; border: 2px solid #e1e5e9; border-radius: 8px;">
-                <button class="btn" onclick="checkGuess()">Check Guess ✅</button>
-                <div id="gameResult" style="margin-top: 10px; font-weight: 600;"></div>
+            <div class="called-numbers">
+                <h3>Called Numbers</h3>
+                <div class="numbers-grid" id="calledNumbers">
+                    <!-- Called numbers will appear here -->
+                </div>
+            </div>
+
+            <div class="win-message hidden" id="winMessage">
+                <div class="win-content">
+                    <h2>🎉 BINGO! 🎉</h2>
+                    <p>Congratulations! You've won!</p>
+                    <button id="celebrateBtn" class="btn celebration">Celebrate!</button>
+                </div>
             </div>
         </main>
 
         <footer>
-            <p>Built with ❤️ for Telegram Mini Apps</p>
+            <div class="stats">
+                <div class="stat-item">
+                    <span>Numbers Called: </span>
+                    <span id="numbersCalled">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Marked: </span>
+                    <span id="markedCount">0</span>
+                </div>
+            </div>
         </footer>
     </div>
 
-    <script>
-        // Telegram Web App initialization
-        let tg = window.Telegram?.WebApp;
-        let clickCount = 0;
-        let visitCount = 1;
-        let secretNumber = Math.floor(Math.random() * 10) + 1;
-
-        function initTelegram() {
-            if (tg) {
-                // Expand to full height
-                tg.expand();
-                
-                // Set background color based on theme
-                const backgroundColor = tg.themeParams.bg_color || '#667eea';
-                document.body.style.background = backgroundColor;
-                
-                // Display user info
-                const user = tg.initDataUnsafe?.user;
-                if (user) {
-                    const userNameEl = document.getElementById('userName');
-                    const userPhotoEl = document.getElementById('userPhoto');
-                    
-                    if (userNameEl) {
-                        userNameEl.textContent = `Hello, ${user.first_name}! 👋`;
-                    }
-                    
-                    if (userPhotoEl && user.photo_url) {
-                        userPhotoEl.src = user.photo_url;
-                        userPhotoEl.style.display = 'block';
-                    }
-                }
-                
-                console.log('Telegram Web App initialized!');
-            } else {
-                document.getElementById('userName').textContent = 'Hello, Tester! 👋';
-                console.log('Running in standalone mode');
-            }
-            
-            updateStats();
-        }
-
-        function showAlert() {
-            clickCount++;
-            updateStats();
-            alert(`Button clicked! 🎉\nTotal clicks: ${clickCount}`);
-        }
-
-        function changeTheme() {
-            const colors = [
-                'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-                'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
-            ];
-            
-            const randomColor = colors[Math.floor(Math.random() * colors.length)];
-            document.body.style.background = randomColor;
-        }
-
-        function showNotification() {
-            if (tg) {
-                tg.showPopup({
-                    title: 'Notification 📢',
-                    message: 'This is a cool notification from your Mini App!',
-                    buttons: [{ type: 'ok' }]
-                });
-            } else {
-                alert('This would be a Telegram notification! 📢');
-            }
-        }
-
-        function checkGuess() {
-            const guessInput = document.getElementById('guessInput');
-            const gameResult = document.getElementById('gameResult');
-            const userGuess = parseInt(guessInput.value);
-
-            if (isNaN(userGuess) || userGuess < 1 || userGuess > 10) {
-                gameResult.textContent = 'Please enter a number between 1-10!';
-                gameResult.style.color = '#f5576c';
-                return;
-            }
-
-            if (userGuess === secretNumber) {
-                gameResult.textContent = '🎉 Correct! You won!';
-                gameResult.style.color = '#43e97b';
-                secretNumber = Math.floor(Math.random() * 10) + 1; // New random number
-            } else if (userGuess < secretNumber) {
-                gameResult.textContent = '📈 Too low! Try again.';
-                gameResult.style.color = '#4facfe';
-            } else {
-                gameResult.textContent = '📉 Too high! Try again.';
-                gameResult.style.color = '#fa709a';
-            }
-
-            guessInput.value = '';
-            clickCount++;
-            updateStats();
-        }
-
-        function updateStats() {
-            document.getElementById('clicksCount').textContent = clickCount;
-            document.getElementById('visitsCount').textContent = visitCount;
-        }
-
-        // Initialize when page loads
-        document.addEventListener('DOMContentLoaded', initTelegram);
-    </script>
+    <script src="script.js"></script>
 </body>
 </html>

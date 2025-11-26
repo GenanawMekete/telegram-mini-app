@@ -1,6 +1,6 @@
 class MultiplayerBingoGame {
     constructor() {
-        this.backendUrl = window.BACKEND_URL || 'https://your-bingo-backend.onrender.com';
+        this.backendUrl = window.BACKEND_URL || 'https://final-bingo.onrender.com';
         this.socket = null;
         this.gameId = null;
         this.playerId = null;

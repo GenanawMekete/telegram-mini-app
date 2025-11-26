@@ -1,17 +1,17 @@
 import { defineConfig } from 'vite';
+import basicSsl from '@vitejs/plugin-basic-ssl';
 
 export default defineConfig({
-  root: '.',
+  plugins: [basicSsl()],
+  server: {
+    port: 3000,
+    https: true
+  },
   build: {
     outDir: 'dist',
-    emptyOutDir: true,
-    rollupOptions: {
-      input: {
-        main: './public/index.html'
-      }
-    }
+    sourcemap: true
   },
-  server: {
-    port: 3000
+  define: {
+    'process.env': {}
   }
 });

@@ -1,16 +1,22 @@
 {
-  "name": "telegram-bingo-frontend",
-  "type": "module",
+  "name": "telegram-bingo-app",
+  "version": "1.0.0",
+  "description": "Interactive Bingo game for Telegram Mini Apps",
+  "main": "public/script.js",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "live-server public",
+    "build": "echo 'No build process needed for this simple app'",
+    "deploy": "npm run build"
   },
-  "dependencies": {
-    "socket.io-client": "^4.7.2",
-    "vite": "^4.4.5"
-  },
+  "keywords": [
+    "telegram",
+    "mini-app",
+    "bingo",
+    "game"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
   "devDependencies": {
-    "@vitejs/plugin-basic-ssl": "^0.1.2"
+    "live-server": "^1.2.2"
   }
 }

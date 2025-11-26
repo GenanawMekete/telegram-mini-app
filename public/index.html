@@ -3,747 +3,80 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multiplayer Bingo</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        
-        body {
-            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
-            color: white;
-            min-height: 100vh;
-            padding: 20px;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: rgba(0, 0, 0, 0.7);
-            border-radius: 15px;
-            padding: 20px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-        }
-        
-        header {
-            text-align: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
-        }
-        
-        h1 {
-            font-size: 2.8rem;
-            margin-bottom: 10px;
-            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
-            color: #FFD700;
-        }
-        
-        .game-info {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 20px;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 15px;
-            border-radius: 10px;
-        }
-        
-        .gems {
-            font-size: 1.5rem;
-            color: #FFD700;
-            font-weight: bold;
-        }
-        
-        .timer {
-            font-size: 1.8rem;
-            color: #FF6B6B;
-            font-weight: bold;
-        }
-        
-        .player-count {
-            font-size: 1.2rem;
-            color: #4ECDC4;
-        }
-        
-        .game-controls {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
-            justify-content: center;
-        }
-        
-        button {
-            padding: 12px 25px;
-            border: none;
-            border-radius: 8px;
-            font-size: 1.1rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            background: #4ECDC4;
-            color: #1a1a2e;
-        }
-        
-        button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-        }
-        
-        button:disabled {
-            background: #555;
-            color: #999;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-        
-        .game-area {
-            display: flex;
-            gap: 20px;
-            flex-wrap: wrap;
-        }
-        
-        .card-selection {
-            flex: 1;
-            min-width: 300px;
-            background: rgba(30, 30, 60, 0.8);
-            padding: 20px;
-            border-radius: 10px;
-        }
-        
-        .card-selection h2 {
-            text-align: center;
-            margin-bottom: 15px;
-            color: #FFD700;
-        }
-        
-        .cards-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 15px;
-            max-height: 400px;
-            overflow-y: auto;
-            padding: 10px;
-        }
-        
-        .card-option {
-            background: rgba(255, 255, 255, 0.1);
-            border: 2px solid transparent;
-            border-radius: 8px;
-            padding: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-align: center;
-        }
-        
-        .card-option:hover {
-            background: rgba(78, 205, 196, 0.2);
-            border-color: #4ECDC4;
-        }
-        
-        .card-option.selected {
-            background: rgba(255, 215, 0, 0.2);
-            border-color: #FFD700;
-            transform: scale(1.05);
-        }
-        
-        .card-option.taken {
-            background: rgba(255, 107, 107, 0.2);
-            border-color: #FF6B6B;
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
-        
-        .card-preview {
-            font-size: 0.8rem;
-            margin-top: 5px;
-            color: #ddd;
-        }
-        
-        .players-list {
-            flex: 1;
-            min-width: 250px;
-            background: rgba(30, 30, 60, 0.8);
-            padding: 20px;
-            border-radius: 10px;
-        }
-        
-        .players-list h2 {
-            text-align: center;
-            margin-bottom: 15px;
-            color: #4ECDC4;
-        }
-        
-        .player-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px;
-            margin-bottom: 8px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 5px;
-        }
-        
-        .player-name {
-            font-weight: bold;
-        }
-        
-        .player-status {
-            color: #FFD700;
-        }
-        
-        .bingo-card {
-            width: 100%;
-            margin-top: 20px;
-            background: rgba(255, 255, 255, 0.9);
-            border-radius: 10px;
-            padding: 15px;
-            color: #1a1a2e;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-        }
-        
-        .bingo-card h2 {
-            text-align: center;
-            margin-bottom: 15px;
-            color: #1a2a6c;
-        }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        
-        th {
-            background: #1a2a6c;
-            color: white;
-            padding: 12px;
-            font-size: 1.2rem;
-        }
-        
-        td {
-            border: 1px solid #1a2a6c;
-            padding: 12px;
-            text-align: center;
-            font-weight: bold;
-            font-size: 1.1rem;
-            transition: all 0.3s ease;
-        }
-        
-        td.marked {
-            background: #FF6B6B;
-            color: white;
-        }
-        
-        .free {
-            background: #4ECDC4;
-            color: white;
-        }
-        
-        .game-message {
-            text-align: center;
-            margin-top: 20px;
-            padding: 15px;
-            background: rgba(255, 215, 0, 0.2);
-            border-radius: 10px;
-            font-size: 1.2rem;
-            color: #FFD700;
-        }
-        
-        @media (max-width: 768px) {
-            .game-area {
-                flex-direction: column;
-            }
-            
-            .cards-grid {
-                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-            }
-        }
-    </style>
+    <title>Abush Bingo Game</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Abush Bingo Multiplayer</h1>
+            <h1>🎯 Abush Bingo</h1>
             <div class="game-info">
-                <div class="gems">Gems Won: <span id="gems-count">1</span></div>
-                <div class="timer">Time Left: <span id="timer">30</span>s</div>
-                <div class="player-count">Players: <span id="players-count">1</span>/8</div>
+                <div class="player-info">
+                    <span id="playerName">Player</span>
+                </div>
+                <div class="score-board">
+                    <span>Games Won: <span id="gamesWon">0</span></span>
+                </div>
             </div>
         </header>
-        
-        <div class="game-controls">
-            <button id="new-game-btn">New Multiplayer Game</button>
-            <button id="auto-mark-btn">Auto Mark</button>
-            <button id="reset-btn">Reset</button>
-        </div>
-        
-        <div class="game-area">
-            <div class="card-selection">
-                <h2>Select Your Bingo Card</h2>
-                <div class="cards-grid" id="cards-container">
-                    <!-- Card options will be generated here -->
+
+        <main>
+            <div class="game-controls">
+                <button id="newGameBtn" class="btn primary">New Game</button>
+                <button id="resetBtn" class="btn danger">Reset</button>
+            </div>
+
+            <!-- Win condition indicators will be inserted here by JavaScript -->
+
+            <div class="bingo-card">
+                <div class="bingo-header">
+                    <div class="bingo-letter">B</div>
+                    <div class="bingo-letter">I</div>
+                    <div class="bingo-letter">N</div>
+                    <div class="bingo-letter">G</div>
+                    <div class="bingo-letter">O</div>
+                </div>
+                <div class="bingo-grid" id="bingoGrid">
+                    <!-- Bingo cells will be generated here -->
                 </div>
             </div>
-            
-            <div class="players-list">
-                <h2>Players</h2>
-                <div id="players-container">
-                    <div class="player-item">
-                        <span class="player-name">Abush</span>
-                        <span class="player-status">Ready</span>
-                    </div>
+
+            <div class="game-instructions">
+                <h3>🎯 Win Conditions:</h3>
+                <ul>
+                    <li>Complete any <strong>Row OR Column</strong></li>
+                    <li>Complete <strong>Both Diagonals</strong></li>
+                    <li>Mark all <strong>Four Corners</strong></li>
+                </ul>
+                <p><em>Click on called numbers to mark them!</em></p>
+            </div>
+
+            <div class="called-numbers">
+                <h3>Called Numbers <span id="numbersCalled">0</span></h3>
+                <div class="numbers-grid" id="calledNumbers">
+                    <!-- Called numbers will appear here -->
                 </div>
             </div>
-        </div>
-        
-        <div class="bingo-card">
-            <h2>Your Bingo Card</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>B</th>
-                        <th>I</th>
-                        <th>N</th>
-                        <th>G</th>
-                        <th>O</th>
-                    </tr>
-                </thead>
-                <tbody id="bingo-card-body">
-                    <!-- Bingo card will be generated here -->
-                </tbody>
-            </table>
-        </div>
-        
-        <div class="game-message" id="game-message">
-            Game will start in 30 seconds. Select your bingo card!
-        </div>
+
+            <div class="game-stats">
+                <div class="stat-item">
+                    <span>Marked Cells: </span>
+                    <span id="markedCount">0</span>/24
+                </div>
+            </div>
+
+            <div class="win-message hidden" id="winMessage">
+                <div class="win-content">
+                    <h2>🎉 BINGO! 🎉</h2>
+                    <p id="winText">Congratulations! You've won!</p>
+                    <button id="celebrateBtn" class="btn celebration">Celebrate!</button>
+                    <button id="newGameAfterWin" class="btn primary">Play Again</button>
+                </div>
+            </div>
+        </main>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Game state
-            const gameState = {
-                gems: 1,
-                players: ['Abush'],
-                selectedCard: null,
-                gameStarted: false,
-                countdown: 30,
-                timerInterval: null,
-                availableCards: [],
-                takenCards: new Set(),
-                currentPlayer: 'Abush'
-            };
-            
-            // DOM elements
-            const gemsCount = document.getElementById('gems-count');
-            const timerElement = document.getElementById('timer');
-            const playersCount = document.getElementById('players-count');
-            const newGameBtn = document.getElementById('new-game-btn');
-            const autoMarkBtn = document.getElementById('auto-mark-btn');
-            const resetBtn = document.getElementById('reset-btn');
-            const cardsContainer = document.getElementById('cards-container');
-            const playersContainer = document.getElementById('players-container');
-            const bingoCardBody = document.getElementById('bingo-card-body');
-            const gameMessage = document.getElementById('game-message');
-            
-            // Initialize the game
-            initGame();
-            
-            // Event listeners
-            newGameBtn.addEventListener('click', startNewGame);
-            autoMarkBtn.addEventListener('click', toggleAutoMark);
-            resetBtn.addEventListener('click', resetGame);
-            
-            function initGame() {
-                generateCardPool(20);
-                renderCardSelection();
-                updatePlayerCount();
-                renderBingoCard();
-            }
-            
-            function generateCardPool(count) {
-                gameState.availableCards = [];
-                
-                for (let i = 0; i < count; i++) {
-                    const card = generateBingoCard();
-                    gameState.availableCards.push({
-                        id: i,
-                        numbers: card,
-                        taken: false
-                    });
-                }
-            }
-            
-            function generateBingoCard() {
-                const ranges = {
-                    'B': [1, 15],
-                    'I': [16, 30],
-                    'N': [31, 45],
-                    'G': [46, 60],
-                    'O': [61, 75]
-                };
-                
-                const card = { B: [], I: [], N: [], G: [], O: [] };
-                
-                Object.keys(ranges).forEach(letter => {
-                    const [min, max] = ranges[letter];
-                    const column = [];
-                    
-                    while (column.length < 5) {
-                        const num = Math.floor(Math.random() * (max - min + 1)) + min;
-                        if (!column.includes(num)) {
-                            column.push(num);
-                        }
-                    }
-                    
-                    card[letter] = column;
-                });
-                
-                // Set FREE space
-                card['N'][2] = 'FREE';
-                
-                return card;
-            }
-            
-            function renderCardSelection() {
-                cardsContainer.innerHTML = '';
-                
-                gameState.availableCards.forEach(card => {
-                    const cardElement = document.createElement('div');
-                    cardElement.className = 'card-option';
-                    
-                    if (card.taken) {
-                        cardElement.classList.add('taken');
-                    }
-                    
-                    if (gameState.selectedCard && gameState.selectedCard.id === card.id) {
-                        cardElement.classList.add('selected');
-                    }
-                    
-                    cardElement.innerHTML = `
-                        <div>Card ${card.id + 1}</div>
-                        <div class="card-preview">
-                            B: ${card.numbers.B[0]}, ${card.numbers.B[1]}, ...<br>
-                            I: ${card.numbers.I[0]}, ${card.numbers.I[1]}, ...<br>
-                            N: ${card.numbers.N[0]}, ${card.numbers.N[1]}, FREE, ...
-                        </div>
-                    `;
-                    
-                    if (!card.taken) {
-                        cardElement.addEventListener('click', () => selectCard(card));
-                    }
-                    
-                    cardsContainer.appendChild(cardElement);
-                });
-            }
-            
-            function selectCard(card) {
-                if (gameState.gameStarted || gameState.selectedCard) return;
-                
-                gameState.selectedCard = card;
-                renderCardSelection();
-                renderBingoCard();
-                gameMessage.textContent = `Card ${card.id + 1} selected! Waiting for other players...`;
-                
-                // Simulate other players selecting cards
-                simulateOtherPlayers();
-            }
-            
-            function simulateOtherPlayers() {
-                // Simulate 3-7 other players joining and selecting cards
-                const numPlayers = Math.floor(Math.random() * 5) + 3;
-                
-                for (let i = 0; i < numPlayers; i++) {
-                    setTimeout(() => {
-                        const availableCards = gameState.availableCards.filter(c => 
-                            !c.taken && c.id !== (gameState.selectedCard ? gameState.selectedCard.id : -1)
-                        );
-                        
-                        if (availableCards.length > 0) {
-                            const randomIndex = Math.floor(Math.random() * availableCards.length);
-                            const card = availableCards[randomIndex];
-                            card.taken = true;
-                            gameState.takenCards.add(card.id);
-                            
-                            const playerName = `Player${gameState.players.length + 1}`;
-                            gameState.players.push(playerName);
-                            
-                            updatePlayerCount();
-                            renderCardSelection();
-                            renderPlayersList();
-                        }
-                    }, (i + 1) * 2000);
-                }
-            }
-            
-            function renderPlayersList() {
-                playersContainer.innerHTML = '';
-                
-                gameState.players.forEach(player => {
-                    const playerElement = document.createElement('div');
-                    playerElement.className = 'player-item';
-                    
-                    playerElement.innerHTML = `
-                        <span class="player-name">${player}</span>
-                        <span class="player-status">${player === gameState.currentPlayer ? 'You' : 'Ready'}</span>
-                    `;
-                    
-                    playersContainer.appendChild(playerElement);
-                });
-            }
-            
-            function updatePlayerCount() {
-                playersCount.textContent = gameState.players.length;
-            }
-            
-            function renderBingoCard() {
-                if (!gameState.selectedCard) {
-                    bingoCardBody.innerHTML = `
-                        <tr>
-                            <td colspan="5" style="text-align: center; padding: 40px;">
-                                Select a card to start playing
-                            </td>
-                        </tr>
-                    `;
-                    return;
-                }
-                
-                bingoCardBody.innerHTML = '';
-                const card = gameState.selectedCard.numbers;
-                
-                for (let i = 0; i < 5; i++) {
-                    const row = document.createElement('tr');
-                    
-                    ['B', 'I', 'N', 'G', 'O'].forEach(letter => {
-                        const cell = document.createElement('td');
-                        const value = card[letter][i];
-                        
-                        if (value === 'FREE') {
-                            cell.textContent = 'FREE';
-                            cell.classList.add('free');
-                        } else {
-                            cell.textContent = value;
-                            cell.addEventListener('click', () => markCell(cell));
-                        }
-                        
-                        row.appendChild(cell);
-                    });
-                    
-                    bingoCardBody.appendChild(row);
-                }
-            }
-            
-            function markCell(cell) {
-                if (!gameState.gameStarted) return;
-                
-                cell.classList.toggle('marked');
-                
-                // Check for bingo
-                if (checkBingo()) {
-                    gameMessage.textContent = 'BINGO! You won!';
-                    gameState.gems++;
-                    gemsCount.textContent = gameState.gems;
-                }
-            }
-            
-            function checkBingo() {
-                // Simplified bingo check - in a real game, this would be more comprehensive
-                const rows = bingoCardBody.querySelectorAll('tr');
-                
-                // Check rows
-                for (let row of rows) {
-                    const cells = row.querySelectorAll('td');
-                    let markedCount = 0;
-                    
-                    for (let cell of cells) {
-                        if (cell.classList.contains('marked') || cell.classList.contains('free')) {
-                            markedCount++;
-                        }
-                    }
-                    
-                    if (markedCount === 5) return true;
-                }
-                
-                // Check columns
-                for (let i = 0; i < 5; i++) {
-                    let markedCount = 0;
-                    
-                    for (let row of rows) {
-                        const cell = row.querySelectorAll('td')[i];
-                        if (cell.classList.contains('marked') || cell.classList.contains('free')) {
-                            markedCount++;
-                        }
-                    }
-                    
-                    if (markedCount === 5) return true;
-                }
-                
-                return false;
-            }
-            
-            function startNewGame() {
-                // Reset game state
-                gameState.selectedCard = null;
-                gameState.gameStarted = false;
-                gameState.countdown = 30;
-                gameState.takenCards.clear();
-                gameState.players = [gameState.currentPlayer];
-                
-                // Reset UI
-                gemsCount.textContent = gameState.gems;
-                timerElement.textContent = gameState.countdown;
-                gameMessage.textContent = 'Game will start in 30 seconds. Select your bingo card!';
-                
-                // Generate new cards
-                generateCardPool(20);
-                renderCardSelection();
-                renderPlayersList();
-                renderBingoCard();
-                
-                // Start countdown
-                if (gameState.timerInterval) {
-                    clearInterval(gameState.timerInterval);
-                }
-                
-                gameState.timerInterval = setInterval(() => {
-                    gameState.countdown--;
-                    timerElement.textContent = gameState.countdown;
-                    
-                    if (gameState.countdown <= 0) {
-                        clearInterval(gameState.timerInterval);
-                        startGameplay();
-                    }
-                }, 1000);
-                
-                // Disable new game button during countdown
-                newGameBtn.disabled = true;
-                setTimeout(() => {
-                    newGameBtn.disabled = false;
-                }, 30000);
-            }
-            
-            function startGameplay() {
-                gameState.gameStarted = true;
-                
-                if (!gameState.selectedCard) {
-                    // Auto-select a card if none was chosen
-                    const availableCards = gameState.availableCards.filter(c => !c.taken);
-                    if (availableCards.length > 0) {
-                        const randomIndex = Math.floor(Math.random() * availableCards.length);
-                        gameState.selectedCard = availableCards[randomIndex];
-                        renderBingoCard();
-                    }
-                }
-                
-                gameMessage.textContent = 'Game started! Numbers will be called shortly.';
-                
-                // Start calling numbers (simulated)
-                startNumberCalling();
-            }
-            
-            function startNumberCalling() {
-                // Simulate number calling in a real bingo game
-                let calledNumbers = new Set();
-                let callInterval = setInterval(() => {
-                    if (calledNumbers.size >= 75) {
-                        clearInterval(callInterval);
-                        return;
-                    }
-                    
-                    let number;
-                    do {
-                        const letterIndex = Math.floor(Math.random() * 5);
-                        const numberIndex = Math.floor(Math.random() * 15) + 1;
-                        const letters = ['B', 'I', 'N', 'G', 'O'];
-                        number = `${letters[letterIndex]}-${numberIndex + letterIndex * 15}`;
-                    } while (calledNumbers.has(number));
-                    
-                    calledNumbers.add(number);
-                    gameMessage.textContent = `Number called: ${number}`;
-                    
-                    // Auto-mark if enabled
-                    if (autoMarkBtn.classList.contains('active')) {
-                        autoMarkNumber(number);
-                    }
-                    
-                    // Check if someone has won (random chance)
-                    if (Math.random() < 0.1 && calledNumbers.size > 20) {
-                        setTimeout(() => {
-                            const winner = gameState.players[Math.floor(Math.random() * gameState.players.length)];
-                            gameMessage.textContent = `BINGO! ${winner} has won the game!`;
-                            clearInterval(callInterval);
-                        }, 2000);
-                    }
-                }, 3000);
-            }
-            
-            function autoMarkNumber(number) {
-                if (!gameState.selectedCard) return;
-                
-                const [letter, num] = number.split('-');
-                const numericValue = parseInt(num);
-                
-                const rows = bingoCardBody.querySelectorAll('tr');
-                for (let i = 0; i < rows.length; i++) {
-                    const cells = rows[i].querySelectorAll('td');
-                    const cell = cells[['B', 'I', 'N', 'G', 'O'].indexOf(letter)];
-                    
-                    if (parseInt(cell.textContent) === numericValue) {
-                        cell.classList.add('marked');
-                        
-                        if (checkBingo()) {
-                            gameMessage.textContent = 'BINGO! You won!';
-                            gameState.gems++;
-                            gemsCount.textContent = gameState.gems;
-                        }
-                        
-                        break;
-                    }
-                }
-            }
-            
-            function toggleAutoMark() {
-                autoMarkBtn.classList.toggle('active');
-                
-                if (autoMarkBtn.classList.contains('active')) {
-                    autoMarkBtn.style.background = '#FFD700';
-                    autoMarkBtn.style.color = '#1a1a2e';
-                } else {
-                    autoMarkBtn.style.background = '#4ECDC4';
-                    autoMarkBtn.style.color = '#1a1a2e';
-                }
-            }
-            
-            function resetGame() {
-                if (gameState.timerInterval) {
-                    clearInterval(gameState.timerInterval);
-                }
-                
-                gameState.gems = 1;
-                gameState.players = [gameState.currentPlayer];
-                gameState.selectedCard = null;
-                gameState.gameStarted = false;
-                gameState.countdown = 30;
-                gameState.takenCards.clear();
-                
-                gemsCount.textContent = gameState.gems;
-                timerElement.textContent = gameState.countdown;
-                gameMessage.textContent = 'Game reset. Start a new game to play!';
-                
-                generateCardPool(20);
-                renderCardSelection();
-                renderPlayersList();
-                renderBingoCard();
-                
-                autoMarkBtn.classList.remove('active');
-                autoMarkBtn.style.background = '#4ECDC4';
-                autoMarkBtn.style.color = '#1a1a2e';
-                
-                newGameBtn.disabled = false;
-            }
-        });
-    </script>
+    <script src="script.js"></script>
 </body>
 </html>

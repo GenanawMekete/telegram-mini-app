@@ -3,78 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Abush Bingo Game</title>
+    <title>Abush Bingo</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <link rel="stylesheet" href="styles.css">
+    
+    <script>
+        // ⚠️ REPLACE THIS WITH YOUR ACTUAL RENDER BACKEND URL
+        window.BACKEND_URL = 'https://backend-2-544g.onrender.com';
+    </script>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>🎯 Abush Bingo</h1>
+            <h1>🎮 Multiplayer Bingo</h1>
             <div class="game-info">
                 <div class="player-info">
                     <span id="playerName">Player</span>
                 </div>
                 <div class="score-board">
-                    <span>Games Won: <span id="gamesWon">0</span></span>
+                    <span>Status: <span id="connectionStatus">Connecting...</span></span>
                 </div>
             </div>
         </header>
 
-        <main>
-            <div class="game-controls">
-                <button id="newGameBtn" class="btn primary">New Game</button>
-                <button id="resetBtn" class="btn danger">Reset</button>
-            </div>
-
-            <!-- Win condition indicators will be inserted here by JavaScript -->
-
-            <div class="bingo-card">
-                <div class="bingo-header">
-                    <div class="bingo-letter">B</div>
-                    <div class="bingo-letter">I</div>
-                    <div class="bingo-letter">N</div>
-                    <div class="bingo-letter">G</div>
-                    <div class="bingo-letter">O</div>
-                </div>
-                <div class="bingo-grid" id="bingoGrid">
-                    <!-- Bingo cells will be generated here -->
-                </div>
-            </div>
-
-            <div class="game-instructions">
-                <h3>🎯 Win Conditions:</h3>
-                <ul>
-                    <li>Complete any <strong>Row OR Column</strong></li>
-                    <li>Complete <strong>Both Diagonals</strong></li>
-                    <li>Mark all <strong>Four Corners</strong></li>
-                </ul>
-                <p><em>Click on called numbers to mark them!</em></p>
-            </div>
-
-            <div class="called-numbers">
-                <h3>Called Numbers <span id="numbersCalled">0</span></h3>
-                <div class="numbers-grid" id="calledNumbers">
-                    <!-- Called numbers will appear here -->
-                </div>
-            </div>
-
-            <div class="game-stats">
-                <div class="stat-item">
-                    <span>Marked Cells: </span>
-                    <span id="markedCount">0</span>/24
-                </div>
-            </div>
-
-            <div class="win-message hidden" id="winMessage">
-                <div class="win-content">
-                    <h2>🎉 BINGO! 🎉</h2>
-                    <p id="winText">Congratulations! You've won!</p>
-                    <button id="celebrateBtn" class="btn celebration">Celebrate!</button>
-                    <button id="newGameAfterWin" class="btn primary">Play Again</button>
-                </div>
+        <main id="mainContent">
+            <div class="loading">
+                <h2>Loading Bingo Game...</h2>
+                <div class="spinner"></div>
             </div>
         </main>
+
+        <footer>
+            <div class="stats">
+                <div class="stat-item">
+                    <span>Backend: </span>
+                    <span id="backendUrl">Checking...</span>
+                </div>
+            </div>
+        </footer>
     </div>
 
     <script src="script.js"></script>

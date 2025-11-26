@@ -4,6 +4,13 @@ class BingoGame {
         this.calledNumbers = [];
         this.isGameActive = false;
         this.gamesWon = 0;
+        this.markedCells = new Set(); // Track marked cell indices
+        this.winConditions = {
+            rows: [false, false, false, false, false],
+            columns: [false, false, false, false, false],
+            diagonals: [false, false], // [mainDiagonal, antiDiagonal]
+            fourCorners: false
+        };
         this.init();
     }
 
@@ -20,7 +27,6 @@ class BingoGame {
         this.tg.expand();
         this.tg.ready();
         
-        // Set user info if available
         const user = this.tg.initDataUnsafe?.user;
         if (user) {
             document.getElementById('playerName').textContent = 
@@ -32,6 +38,7 @@ class BingoGame {
         const grid = document.getElementById('bingoGrid');
         grid.innerHTML = '';
         this.cells = [];
+        this.markedCells.clear();
 
         // Bingo number ranges for each column
         const ranges = [
@@ -46,22 +53,21 @@ class BingoGame {
             for (let col = 0; col < 5; col++) {
                 const cell = document.createElement('div');
                 cell.className = 'bingo-cell';
+                cell.dataset.row = row;
+                cell.dataset.col = col;
                 
                 if (row === 2 && col === 2) {
-                    // Center cell - FREE SPACE
+                    // Center cell - FREE SPACE (automatically marked)
                     cell.textContent = 'FREE';
-                    cell.classList.add('free');
+                    cell.classList.add('free', 'marked');
                     cell.dataset.number = 'FREE';
-                    cell.dataset.row = row;
-                    cell.dataset.col = col;
+                    this.markedCells.add(this.getCellIndex(row, col));
                 } else {
                     // Generate unique numbers for each column
                     const numbers = this.generateColumnNumbers(ranges[col].min, ranges[col].max);
                     const number = numbers[row];
                     cell.textContent = number;
                     cell.dataset.number = number;
-                    cell.dataset.row = row;
-                    cell.dataset.col = col;
                     
                     cell.addEventListener('click', () => this.markCell(cell));
                 }
@@ -70,6 +76,9 @@ class BingoGame {
                 this.cells.push(cell);
             }
         }
+
+        // Initialize win conditions
+        this.resetWinConditions();
     }
 
     generateColumnNumbers(min, max) {
@@ -83,22 +92,33 @@ class BingoGame {
         return numbers;
     }
 
+    getCellIndex(row, col) {
+        return row * 5 + col;
+    }
+
     setupEventListeners() {
         document.getElementById('newGameBtn').addEventListener('click', () => this.newGame());
-        document.getElementById('autoMarkBtn').addEventListener('click', () => this.autoMark());
         document.getElementById('resetBtn').addEventListener('click', () => this.resetGame());
         document.getElementById('celebrateBtn').addEventListener('click', () => this.celebrate());
+        
+        // Remove auto-mark button since we're doing manual marking only
+        const autoMarkBtn = document.getElementById('autoMarkBtn');
+        if (autoMarkBtn) {
+            autoMarkBtn.style.display = 'none';
+        }
     }
 
     newGame() {
         this.isGameActive = true;
         this.calledNumbers = [];
+        this.markedCells.clear();
         this.createBingoCard();
         this.hideWinMessage();
+        this.resetWinConditions();
         this.updateDisplay();
         this.saveGameState();
         
-        // Simulate calling numbers automatically
+        // Start number calling
         this.startNumberCalling();
     }
 
@@ -111,7 +131,7 @@ class BingoGame {
             if (this.isGameActive && this.calledNumbers.length < 75) {
                 this.callRandomNumber();
             }
-        }, 3000); // Call a number every 3 seconds
+        }, 3000);
     }
 
     callRandomNumber() {
@@ -122,22 +142,34 @@ class BingoGame {
         
         this.calledNumbers.push(number);
         this.updateCalledNumbersDisplay();
-        this.autoMarkCalledNumbers();
         this.updateDisplay();
         this.saveGameState();
         
-        // Haptic feedback
+        // Haptic feedback for new number
         if (this.tg && this.tg.HapticFeedback) {
             this.tg.HapticFeedback.impactOccurred('light');
         }
     }
 
     markCell(cell) {
-        if (!this.isGameActive || cell.classList.contains('free') || cell.classList.contains('marked')) {
+        if (!this.isGameActive || 
+            cell.classList.contains('free') || 
+            cell.classList.contains('marked')) {
+            return;
+        }
+
+        const number = parseInt(cell.dataset.number);
+        if (!this.calledNumbers.includes(number)) {
+            this.showMessage(`Number ${number} hasn't been called yet!`);
             return;
         }
 
         cell.classList.add('marked');
+        const row = parseInt(cell.dataset.row);
+        const col = parseInt(cell.dataset.col);
+        const cellIndex = this.getCellIndex(row, col);
+        
+        this.markedCells.add(cellIndex);
         
         // Haptic feedback
         if (this.tg && this.tg.HapticFeedback) {
@@ -149,100 +181,115 @@ class BingoGame {
         this.saveGameState();
     }
 
-    autoMark() {
-        if (!this.isGameActive) return;
-        
-        this.cells.forEach(cell => {
-            const number = parseInt(cell.dataset.number);
-            if (!isNaN(number) && this.calledNumbers.includes(number) && !cell.classList.contains('marked')) {
-                cell.classList.add('marked');
-            }
-        });
-        
-        this.checkWinCondition();
-        this.updateDisplay();
-        this.saveGameState();
-    }
-
-    autoMarkCalledNumbers() {
-        this.cells.forEach(cell => {
-            const number = parseInt(cell.dataset.number);
-            if (!isNaN(number) && this.calledNumbers.includes(number) && !cell.classList.contains('marked')) {
-                cell.classList.add('marked');
-            }
-        });
-        
-        this.checkWinCondition();
-    }
-
     checkWinCondition() {
+        this.updateWinConditions();
+        
+        // Check Condition 1: Any row OR any column
+        const hasCompleteRow = this.winConditions.rows.some(complete => complete);
+        const hasCompleteColumn = this.winConditions.columns.some(complete => complete);
+        const condition1 = hasCompleteRow || hasCompleteColumn;
+
+        // Check Condition 2: Both diagonals
+        const condition2 = this.winConditions.diagonals.every(complete => complete);
+
+        // Check Condition 3: Four corners
+        const condition3 = this.winConditions.fourCorners;
+
+        if (condition1 || condition2 || condition3) {
+            this.handleWin(condition1, condition2, condition3);
+        }
+    }
+
+    updateWinConditions() {
+        // Reset win conditions
+        this.resetWinConditions();
+
         // Check rows
         for (let row = 0; row < 5; row++) {
-            if (this.checkRow(row)) {
-                this.handleWin();
-                return;
+            let rowComplete = true;
+            for (let col = 0; col < 5; col++) {
+                const cellIndex = this.getCellIndex(row, col);
+                if (!this.markedCells.has(cellIndex)) {
+                    rowComplete = false;
+                    break;
+                }
             }
+            this.winConditions.rows[row] = rowComplete;
         }
 
         // Check columns
         for (let col = 0; col < 5; col++) {
-            if (this.checkColumn(col)) {
-                this.handleWin();
-                return;
+            let colComplete = true;
+            for (let row = 0; row < 5; row++) {
+                const cellIndex = this.getCellIndex(row, col);
+                if (!this.markedCells.has(cellIndex)) {
+                    colComplete = false;
+                    break;
+                }
             }
+            this.winConditions.columns[col] = colComplete;
         }
 
         // Check diagonals
-        if (this.checkDiagonal(true) || this.checkDiagonal(false)) {
-            this.handleWin();
-            return;
-        }
-    }
-
-    checkRow(row) {
-        for (let col = 0; col < 5; col++) {
-            const cell = this.getCell(row, col);
-            if (!cell.classList.contains('marked') && !cell.classList.contains('free')) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    checkColumn(col) {
-        for (let row = 0; row < 5; row++) {
-            const cell = this.getCell(row, col);
-            if (!cell.classList.contains('marked') && !cell.classList.contains('free')) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    checkDiagonal(isMain) {
+        let mainDiagonalComplete = true;
+        let antiDiagonalComplete = true;
+        
         for (let i = 0; i < 5; i++) {
-            const row = i;
-            const col = isMain ? i : 4 - i;
-            const cell = this.getCell(row, col);
-            if (!cell.classList.contains('marked') && !cell.classList.contains('free')) {
-                return false;
+            // Main diagonal (0,0; 1,1; 2,2; 3,3; 4,4)
+            const mainIndex = this.getCellIndex(i, i);
+            if (!this.markedCells.has(mainIndex)) {
+                mainDiagonalComplete = false;
+            }
+            
+            // Anti-diagonal (0,4; 1,3; 2,2; 3,1; 4,0)
+            const antiIndex = this.getCellIndex(i, 4 - i);
+            if (!this.markedCells.has(antiIndex)) {
+                antiDiagonalComplete = false;
             }
         }
-        return true;
+        
+        this.winConditions.diagonals[0] = mainDiagonalComplete;
+        this.winConditions.diagonals[1] = antiDiagonalComplete;
+
+        // Check four corners
+        const topLeft = this.getCellIndex(0, 0);
+        const topRight = this.getCellIndex(0, 4);
+        const bottomLeft = this.getCellIndex(4, 0);
+        const bottomRight = this.getCellIndex(4, 4);
+        
+        this.winConditions.fourCorners = 
+            this.markedCells.has(topLeft) &&
+            this.markedCells.has(topRight) &&
+            this.markedCells.has(bottomLeft) &&
+            this.markedCells.has(bottomRight);
     }
 
-    getCell(row, col) {
-        return document.querySelector(`.bingo-cell[data-row="${row}"][data-col="${col}"]`);
+    resetWinConditions() {
+        this.winConditions = {
+            rows: [false, false, false, false, false],
+            columns: [false, false, false, false, false],
+            diagonals: [false, false],
+            fourCorners: false
+        };
     }
 
-    handleWin() {
+    handleWin(condition1, condition2, condition3) {
         this.isGameActive = false;
         this.gamesWon++;
-        this.showWinMessage();
+        
+        let winMessage = '🎉 BINGO! 🎉\n';
+        if (condition1) winMessage += 'Complete Row or Column!';
+        if (condition2) winMessage += 'Both Diagonals Complete!';
+        if (condition3) winMessage += 'Four Corners!';
+        
+        this.showWinMessage(winMessage);
         
         if (this.numberCallingInterval) {
             clearInterval(this.numberCallingInterval);
         }
+
+        // Highlight winning pattern
+        this.highlightWinningPattern(condition1, condition2, condition3);
 
         // Haptic feedback for win
         if (this.tg && this.tg.HapticFeedback) {
@@ -252,14 +299,77 @@ class BingoGame {
         this.saveGameState();
     }
 
-    showWinMessage() {
+    highlightWinningPattern(condition1, condition2, condition3) {
+        // Remove previous highlights
+        this.cells.forEach(cell => {
+            cell.classList.remove('winning-pattern');
+        });
+
+        if (condition1) {
+            // Highlight completed rows and columns
+            this.winConditions.rows.forEach((complete, row) => {
+                if (complete) {
+                    for (let col = 0; col < 5; col++) {
+                        const cell = this.cells[this.getCellIndex(row, col)];
+                        cell.classList.add('winning-pattern');
+                    }
+                }
+            });
+            
+            this.winConditions.columns.forEach((complete, col) => {
+                if (complete) {
+                    for (let row = 0; row < 5; row++) {
+                        const cell = this.cells[this.getCellIndex(row, col)];
+                        cell.classList.add('winning-pattern');
+                    }
+                }
+            });
+        }
+
+        if (condition2) {
+            // Highlight both diagonals
+            for (let i = 0; i < 5; i++) {
+                // Main diagonal
+                const mainCell = this.cells[this.getCellIndex(i, i)];
+                mainCell.classList.add('winning-pattern');
+                
+                // Anti-diagonal
+                const antiCell = this.cells[this.getCellIndex(i, 4 - i)];
+                antiCell.classList.add('winning-pattern');
+            }
+        }
+
+        if (condition3) {
+            // Highlight four corners
+            const corners = [
+                this.getCellIndex(0, 0),
+                this.getCellIndex(0, 4),
+                this.getCellIndex(4, 0),
+                this.getCellIndex(4, 4)
+            ];
+            
+            corners.forEach(index => {
+                this.cells[index].classList.add('winning-pattern');
+            });
+        }
+    }
+
+    showWinMessage(message) {
         const winMessage = document.getElementById('winMessage');
+        const winText = document.getElementById('winText');
+        
+        winText.textContent = message;
         winMessage.classList.remove('hidden');
     }
 
     hideWinMessage() {
         const winMessage = document.getElementById('winMessage');
         winMessage.classList.add('hidden');
+        
+        // Remove winning pattern highlights
+        this.cells.forEach(cell => {
+            cell.classList.remove('winning-pattern');
+        });
     }
 
     celebrate() {
@@ -272,8 +382,10 @@ class BingoGame {
     resetGame() {
         this.isGameActive = false;
         this.calledNumbers = [];
+        this.markedCells.clear();
         this.createBingoCard();
         this.hideWinMessage();
+        this.resetWinConditions();
         
         if (this.numberCallingInterval) {
             clearInterval(this.numberCallingInterval);
@@ -300,9 +412,46 @@ class BingoGame {
 
     updateDisplay() {
         document.getElementById('numbersCalled').textContent = this.calledNumbers.length;
-        document.getElementById('markedCount').textContent = 
-            this.cells.filter(cell => cell.classList.contains('marked')).length;
+        document.getElementById('markedCount').textContent = this.markedCells.size;
         document.getElementById('gamesWon').textContent = this.gamesWon;
+        
+        // Update win condition indicators
+        this.updateWinConditionDisplay();
+    }
+
+    updateWinConditionDisplay() {
+        // Create or update win condition indicators
+        let indicators = document.getElementById('winConditionIndicators');
+        if (!indicators) {
+            indicators = document.createElement('div');
+            indicators.id = 'winConditionIndicators';
+            indicators.className = 'win-condition-indicators';
+            document.querySelector('.game-controls').after(indicators);
+        }
+
+        indicators.innerHTML = `
+            <div class="condition-indicator ${this.winConditions.rows.some(r => r) || this.winConditions.columns.some(c => c) ? 'active' : ''}">
+                <span>📊 Row/Column</span>
+            </div>
+            <div class="condition-indicator ${this.winConditions.diagonals.every(d => d) ? 'active' : ''}">
+                <span>❌ Both Diagonals</span>
+            </div>
+            <div class="condition-indicator ${this.winConditions.fourCorners ? 'active' : ''}">
+                <span>🔲 Four Corners</span>
+            </div>
+        `;
+    }
+
+    showMessage(message) {
+        // Simple message display
+        const messageEl = document.createElement('div');
+        messageEl.className = 'temp-message';
+        messageEl.textContent = message;
+        document.body.appendChild(messageEl);
+        
+        setTimeout(() => {
+            messageEl.remove();
+        }, 2000);
     }
 
     saveGameState() {
@@ -313,7 +462,8 @@ class BingoGame {
             })),
             calledNumbers: this.calledNumbers,
             gamesWon: this.gamesWon,
-            isGameActive: this.isGameActive
+            isGameActive: this.isGameActive,
+            markedCells: Array.from(this.markedCells)
         };
         localStorage.setItem('bingoGameState', JSON.stringify(gameState));
     }
@@ -325,8 +475,22 @@ class BingoGame {
             this.calledNumbers = gameState.calledNumbers || [];
             this.gamesWon = gameState.gamesWon || 0;
             this.isGameActive = gameState.isGameActive || false;
+            this.markedCells = new Set(gameState.markedCells || []);
             
             this.updateCalledNumbersDisplay();
+            
+            // Restore cell states
+            if (gameState.cells) {
+                setTimeout(() => {
+                    gameState.cells.forEach((cellState, index) => {
+                        if (cellState.marked && this.cells[index]) {
+                            this.cells[index].classList.add('marked');
+                        }
+                    });
+                    this.updateWinConditions();
+                    this.updateDisplay();
+                }, 100);
+            }
             
             if (this.isGameActive) {
                 this.startNumberCalling();

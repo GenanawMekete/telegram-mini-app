@@ -1,22 +1,21 @@
-// Multiplayer Bingo Frontend
 class MultiplayerBingoGame {
     constructor() {
-        // Backend URL - Replace with your actual Render URL
-        this.backendUrl = window.BACKEND_URL || 
-                         import.meta.env?.VITE_BACKEND_URL || 
-                         'https://telegram-mini-app-gamma-sandy.vercel.app/';
-        
+        this.backendUrl = window.BACKEND_URL || 'https://telegram-mini-app-gamma-sandy.vercel.app/';
         this.socket = null;
         this.gameId = null;
         this.playerId = null;
         this.playerName = null;
         this.isHost = false;
         this.cells = [];
-        this.markedCells = new Set([12]); // FREE space
+        this.markedCells = new Set([12]);
         this.calledNumbers = [];
         this.players = [];
         this.isGameActive = false;
         this.currentView = 'lobby';
+        this.availableCards = [];
+        this.selectedCard = null;
+        this.hasClaimedBingo = false;
+        this.pendingBingoClaims = []; // Track other players' claims
         
         this.init();
     }
@@ -25,9 +24,6 @@ class MultiplayerBingoGame {
         this.initializeTelegramApp();
         await this.initializeSocketConnection();
         this.showLobby();
-        this.setupGlobalEventListeners();
-        
-        console.log('Frontend initialized with backend:', this.backendUrl);
     }
 
     initializeTelegramApp() {
@@ -38,58 +34,60 @@ class MultiplayerBingoGame {
         const user = this.tg.initDataUnsafe?.user;
         this.playerId = user?.id || this.generatePlayerId();
         this.playerName = user?.first_name || user?.username || 'Player';
-        
-        if (document.getElementById('playerName')) {
-            document.getElementById('playerName').textContent = this.playerName;
-        }
-    }
-
-    generatePlayerId() {
-        return 'player_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
     }
 
     async initializeSocketConnection() {
-        return new Promise((resolve, reject) => {
-            console.log('Connecting to backend:', this.backendUrl);
-            
-            this.socket = io(this.backendUrl, {
-                transports: ['websocket', 'polling'],
-                timeout: 10000,
-                reconnection: true,
-                reconnectionDelay: 1000,
-                reconnectionAttempts: 5
-            });
+        return new Promise((resolve) => {
+            this.socket = io(this.backendUrl);
             
             this.socket.on('connect', () => {
-                console.log('✅ Connected to backend successfully');
-                this.showMessage('Connected to game server!', 'success');
+                console.log('Connected to backend');
                 resolve();
             });
 
-            this.socket.on('connect_error', (error) => {
-                console.error('❌ Connection failed:', error);
-                this.showMessage('Failed to connect to game server. Please refresh.', 'error');
-                reject(error);
+            // New event: Receive card pool
+            this.socket.on('card-pool', (data) => {
+                this.availableCards = data.cards;
+                this.showCardSelection();
             });
 
-            this.socket.on('disconnect', (reason) => {
-                console.log('Disconnected from server:', reason);
-                if (reason === 'io server disconnect') {
-                    // Server forced disconnect, need to manually reconnect
-                    this.socket.connect();
+            this.socket.on('card-selected', (data) => {
+                if (data.success) {
+                    this.selectedCard = data.card;
+                    this.showMessage('Card selected successfully!', 'success');
+                    this.showGameRoom();
                 }
             });
 
-            this.socket.on('reconnecting', (attemptNumber) => {
-                console.log('Reconnecting to server... Attempt:', attemptNumber);
+            this.socket.on('player-card-selected', (data) => {
+                this.showMessage(`${data.playerName} has selected a card`, 'info');
+                this.updatePlayersList(this.players.map(p => 
+                    p.id === data.playerId ? { ...p, hasSelectedCard: true } : p
+                ));
             });
 
-            // Game event handlers
+            this.socket.on('all-players-ready', () => {
+                if (this.isHost) {
+                    this.showMessage('All players have selected cards! You can start the game.', 'success');
+                    document.getElementById('startGameBtn').disabled = false;
+                }
+            });
+
+            // Bingo claim events
+            this.socket.on('bingo-claimed', (data) => {
+                this.pendingBingoClaims.push(data);
+                this.showBingoClaim(data);
+            });
+
+            this.socket.on('bingo-verified', (data) => {
+                this.handleBingoVerification(data);
+            });
+
+            // Existing events
             this.socket.on('game-created', (data) => {
                 this.gameId = data.gameId;
                 this.isHost = true;
-                this.showMessage(data.message, 'success');
-                this.showGameRoom();
+                this.showMessage('Game created! Share the code with friends.', 'success');
             });
 
             this.socket.on('game-joined', (data) => {
@@ -99,13 +97,6 @@ class MultiplayerBingoGame {
             this.socket.on('player-joined', (data) => {
                 this.updatePlayersList(data.players);
                 this.showMessage(`${data.player.name} joined the game!`, 'info');
-            });
-
-            this.socket.on('player-left', (data) => {
-                this.updatePlayersList(data.players);
-                if (data.playerName) {
-                    this.showMessage(`${data.playerName} left the game`, 'warning');
-                }
             });
 
             this.socket.on('game-started', (data) => {
@@ -120,109 +111,393 @@ class MultiplayerBingoGame {
                 this.updatePlayerMarkedCount(data.playerId, data.markedCount);
             });
 
-            this.socket.on('player-won', (data) => {
-                this.handlePlayerWon(data);
-            });
-
-            this.socket.on('chat-message', (data) => {
-                this.displayChatMessage(data);
-            });
-
-            this.socket.on('new-host', (data) => {
-                this.isHost = data.hostId === this.playerId;
-                this.showMessage(`${data.hostName} is now the host`, 'info');
-                this.updateGameControls();
-            });
-
             this.socket.on('error', (data) => {
                 this.showMessage(data.message, 'error');
             });
         });
     }
 
-    // ... rest of your methods (createGame, joinGame, showLobby, etc.)
-    // Make sure all API calls use this.backendUrl
+    showCardSelection() {
+        const mainContent = document.querySelector('main');
+        mainContent.innerHTML = `
+            <div class="card-selection">
+                <div class="selection-header">
+                    <h2>🎴 Choose Your Bingo Card</h2>
+                    <p>Select one card from the available pool. Choose wisely!</p>
+                </div>
 
-    async loadServerStats() {
-        try {
-            const response = await fetch(`${this.backendUrl}/api/stats`);
-            if (!response.ok) throw new Error('Stats endpoint not available');
-            
-            const data = await response.json();
-            if (document.getElementById('activeGames')) {
-                document.getElementById('activeGames').textContent = data.activeGames || 0;
-            }
-            if (document.getElementById('totalPlayers')) {
-                document.getElementById('totalPlayers').textContent = data.totalPlayers || 0;
-            }
-        } catch (error) {
-            console.log('Could not load server stats from:', this.backendUrl);
-            // Set default values
-            if (document.getElementById('activeGames')) {
-                document.getElementById('activeGames').textContent = '0';
-            }
-            if (document.getElementById('totalPlayers')) {
-                document.getElementById('totalPlayers').textContent = '0';
-            }
-        }
-    }
+                <div class="cards-grid">
+                    ${this.availableCards.map((card, index) => `
+                        <div class="card-option" data-card-id="${index}">
+                            <div class="card-preview">
+                                <div class="preview-header">
+                                    <span class="card-id">Card #${index + 1}</span>
+                                </div>
+                                <div class="preview-numbers">
+                                    <div class="preview-col">
+                                        <strong>B:</strong> ${card.preview.B.join(', ')}
+                                    </div>
+                                    <div class="preview-col">
+                                        <strong>I:</strong> ${card.preview.I.join(', ')}
+                                    </div>
+                                    <div class="preview-col">
+                                        <strong>N:</strong> ${card.preview.N.join(', ')}
+                                    </div>
+                                    <div class="preview-col">
+                                        <strong>G:</strong> ${card.preview.G.join(', ')}
+                                    </div>
+                                    <div class="preview-col">
+                                        <strong>O:</strong> ${card.preview.O.join(', ')}
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="btn primary select-card-btn" data-card-id="${index}">
+                                Select This Card
+                            </button>
+                        </div>
+                    `).join('')}
+                </div>
 
-    async testBackendConnection() {
-        try {
-            const response = await fetch(`${this.backendUrl}/health`);
-            if (response.ok) {
-                console.log('✅ Backend health check passed');
-                return true;
-            }
-        } catch (error) {
-            console.error('❌ Backend health check failed:', error);
-        }
-        return false;
-    }
-
-    showMessage(message, type = 'info') {
-        // Your message display implementation
-        console.log(`[${type}] ${message}`);
-        
-        // Simple message display
-        const messageEl = document.createElement('div');
-        messageEl.className = `message ${type}`;
-        messageEl.textContent = message;
-        messageEl.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 12px 20px;
-            border-radius: 8px;
-            color: white;
-            z-index: 10000;
-            max-width: 300px;
-            font-weight: 500;
-            ${type === 'success' ? 'background: #4CAF50;' : ''}
-            ${type === 'error' ? 'background: #f44336;' : ''}
-            ${type === 'warning' ? 'background: #ff9800;' : ''}
-            ${type === 'info' ? 'background: #2196F3;' : ''}
+                <div class="selection-info">
+                    <h3>ℹ️ How to Play</h3>
+                    <ul>
+                        <li>Choose one card from the available options</li>
+                        <li>Once selected, you cannot change your card</li>
+                        <li>When you complete a winning pattern, click "BINGO!" to claim victory</li>
+                        <li>The host will verify your Bingo claim</li>
+                    </ul>
+                </div>
+            </div>
         `;
-        
-        document.body.appendChild(messageEl);
-        
-        setTimeout(() => {
-            messageEl.style.opacity = '0';
-            messageEl.style.transition = 'opacity 0.5s ease';
-            setTimeout(() => messageEl.remove(), 500);
-        }, 3000);
+
+        this.setupCardSelectionEvents();
     }
 
-    // ... continue with all your other methods
-}
+    setupCardSelectionEvents() {
+        document.querySelectorAll('.select-card-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const cardId = parseInt(e.target.dataset.cardId);
+                this.selectCard(cardId);
+            });
+        });
 
-// Initialize the game when the page loads
-document.addEventListener('DOMContentLoaded', () => {
-    // Test backend connection on startup
-    const game = new MultiplayerBingoGame();
-    
-    // Expose game instance for debugging
-    window.bingoGame = game;
-    
-    console.log('Bingo game initialized with backend URL:', game.backendUrl);
-});
+        // Add hover effects
+        document.querySelectorAll('.card-option').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.classList.add('hover');
+            });
+            card.addEventListener('mouseleave', () => {
+                card.classList.remove('hover');
+            });
+        });
+    }
+
+    selectCard(cardId) {
+        this.socket.emit('select-card', {
+            gameId: this.gameId,
+            cardId: cardId
+        });
+    }
+
+    showGameRoom() {
+        const mainContent = document.querySelector('main');
+        mainContent.innerHTML = `
+            <div class="game-room">
+                <div class="room-header">
+                    <h2>Game Room: <span id="roomCode">${this.gameId}</span></h2>
+                    <div class="room-actions">
+                        <button id="copyCodeBtn" class="btn small">Copy Code</button>
+                        <button id="leaveRoomBtn" class="btn small danger">Leave</button>
+                    </div>
+                </div>
+
+                <div class="players-panel">
+                    <h3>Players (${this.players.length})</h3>
+                    <div class="players-list" id="playersList">
+                        ${this.players.map(player => this.renderPlayerItem(player)).join('')}
+                    </div>
+                </div>
+
+                ${this.selectedCard ? this.renderCardPreview(this.selectedCard) : ''}
+
+                <div class="room-controls">
+                    ${this.isHost ? `
+                        <button id="startGameBtn" class="btn primary" 
+                                ${this.players.every(p => p.hasSelectedCard) ? '' : 'disabled'}>
+                            Start Game 
+                            ${this.players.every(p => p.hasSelectedCard) ? 
+                              '(Ready!)' : 
+                              `(${this.players.filter(p => p.hasSelectedCard).length}/${this.players.length} cards selected)`}
+                        </button>
+                    ` : `
+                        <div class="waiting-host">
+                            <p>Waiting for host to start the game...</p>
+                            <div class="progress-status">
+                                Cards selected: ${this.players.filter(p => p.hasSelectedCard).length}/${this.players.length}
+                            </div>
+                        </div>
+                    `}
+                </div>
+
+                <div class="chat-panel">
+                    <h3>Chat</h3>
+                    <div class="chat-messages" id="chatMessages"></div>
+                    <div class="chat-input">
+                        <input type="text" id="chatInput" placeholder="Type a message..." maxlength="200">
+                        <button id="sendChatBtn" class="btn small">Send</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        this.setupGameRoomEvents();
+    }
+
+    renderPlayerItem(player) {
+        return `
+            <div class="player-item ${player.id === this.playerId ? 'current-player' : ''}">
+                <div class="player-info">
+                    <span class="player-name">${player.name}</span>
+                    ${player.isHost ? '<span class="host-badge">Host</span>' : ''}
+                    ${player.id === this.playerId ? '<span class="you-badge">You</span>' : ''}
+                </div>
+                <div class="player-status">
+                    ${player.hasSelectedCard ? 
+                      '<span class="status-badge ready">Card Selected</span>' : 
+                      '<span class="status-badge waiting">Choosing Card</span>'}
+                </div>
+            </div>
+        `;
+    }
+
+    renderCardPreview(card) {
+        return `
+            <div class="selected-card-preview">
+                <h3>Your Selected Card</h3>
+                <div class="preview-grid">
+                    ${card.map(cell => `
+                        <div class="preview-cell ${cell.isFree ? 'free' : ''}">
+                            ${cell.isFree ? 'FREE' : cell.number}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    renderGameBoard() {
+        const mainContent = document.querySelector('main');
+        mainContent.innerHTML = `
+            <div class="multiplayer-game">
+                <div class="game-header">
+                    <div class="game-info">
+                        <h2>Game: ${this.gameId}</h2>
+                        <div class="game-stats">
+                            <span>Players: ${this.players.length}</span>
+                            <span>Numbers Called: <span id="numbersCount">${this.calledNumbers.length}</span></span>
+                        </div>
+                    </div>
+                    <div class="game-actions">
+                        <button id="bingoBtn" class="btn celebration" disabled>
+                            🎯 BINGO!
+                        </button>
+                        <button id="leaveGameBtn" class="btn danger">Leave Game</button>
+                    </div>
+                </div>
+
+                <div class="game-content">
+                    <div class="bingo-section">
+                        <div class="bingo-card">
+                            <div class="bingo-header">
+                                <div class="bingo-letter">B</div>
+                                <div class="bingo-letter">I</div>
+                                <div class="bingo-letter">N</div>
+                                <div class="bingo-letter">G</div>
+                                <div class="bingo-letter">O</div>
+                            </div>
+                            <div class="bingo-grid" id="bingoGrid">
+                                ${this.selectedCard.map(cell => `
+                                    <div class="bingo-cell ${cell.isFree ? 'free marked' : ''}" 
+                                         data-index="${cell.index}" 
+                                         data-number="${cell.number}">
+                                        ${cell.isFree ? 'FREE' : cell.number}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <div class="win-conditions">
+                            <h3>🎯 Win Conditions:</h3>
+                            <ul>
+                                <li>Complete any <strong>Row OR Column</strong></li>
+                                <li>Complete <strong>Both Diagonals</strong></li>
+                                <li>Mark all <strong>Four Corners</strong></li>
+                            </ul>
+                            <p><em>Click "BINGO!" when you complete a pattern</em></p>
+                        </div>
+                    </div>
+
+                    <div class="game-sidebar">
+                        <div class="bingo-claims-panel" id="bingoClaimsPanel">
+                            <h3>⏳ Bingo Claims</h3>
+                            <div class="claims-list" id="claimsList">
+                                <!-- Pending claims will appear here -->
+                            </div>
+                        </div>
+
+                        <div class="players-board">
+                            <h3>Players</h3>
+                            <div class="players-ranking" id="playersRanking">
+                                ${this.players.map(player => `
+                                    <div class="player-rank ${player.id === this.playerId ? 'current-player' : ''}">
+                                        <span class="player-name">${player.name}</span>
+                                        <span class="player-progress">
+                                            <span class="progress-bar">
+                                                <span class="progress-fill" style="width: ${(player.markedCount || 0) / 24 * 100}%"></span>
+                                            </span>
+                                            <span class="progress-text">${player.markedCount || 0}/24</span>
+                                        </span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <div class="called-numbers-panel">
+                            <h3>Called Numbers</h3>
+                            <div class="numbers-grid" id="calledNumbers">
+                                ${this.calledNumbers.map(number => `
+                                    <div class="number-chip">${number}</div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="win-message hidden" id="winMessage">
+                    <div class="win-content">
+                        <h2 id="winTitle">🎉 BINGO! 🎉</h2>
+                        <p id="winText"></p>
+                        <div class="win-actions">
+                            <button id="celebrateBtn" class="btn celebration">Celebrate!</button>
+                            <button id="backToLobbyBtn" class="btn primary">Back to Lobby</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        this.setupGameEvents();
+        this.updateBingoButton();
+    }
+
+    setupGameEvents() {
+        // Cell clicking
+        document.querySelectorAll('.bingo-cell:not(.free)').forEach(cell => {
+            cell.addEventListener('click', () => {
+                const cellIndex = parseInt(cell.dataset.index);
+                this.markCell(cellIndex, cell);
+            });
+        });
+
+        // Bingo button
+        document.getElementById('bingoBtn').addEventListener('click', () => {
+            this.claimBingo();
+        });
+
+        // Other buttons
+        document.getElementById('leaveGameBtn').addEventListener('click', () => this.leaveGame());
+        document.getElementById('celebrateBtn').addEventListener('click', () => this.celebrate());
+        document.getElementById('backToLobbyBtn').addEventListener('click', () => {
+            this.leaveGame();
+            this.hideWinMessage();
+        });
+    }
+
+    markCell(cellIndex, cellElement) {
+        if (!this.isGameActive || this.markedCells.has(cellIndex)) {
+            return;
+        }
+
+        const cell = this.selectedCard.find(c => c.index === cellIndex);
+        if (cell && this.calledNumbers.includes(cell.number)) {
+            this.socket.emit('mark-cell', {
+                gameId: this.gameId,
+                cellIndex: cellIndex
+            });
+
+            cellElement.classList.add('marked');
+            this.markedCells.add(cellIndex);
+            
+            // Update Bingo button state
+            this.updateBingoButton();
+            
+            // Haptic feedback
+            if (this.tg && this.tg.HapticFeedback) {
+                this.tg.HapticFeedback.impactOccurred('medium');
+            }
+        }
+    }
+
+    updateBingoButton() {
+        const bingoBtn = document.getElementById('bingoBtn');
+        if (bingoBtn) {
+            const hasWinningPattern = this.checkWinCondition();
+            bingoBtn.disabled = !hasWinningPattern || this.hasClaimedBingo;
+            
+            if (hasWinningPattern && !this.hasClaimedBingo) {
+                bingoBtn.classList.add('pulse');
+                bingoBtn.title = 'Click to claim Bingo!';
+            } else {
+                bingoBtn.classList.remove('pulse');
+                bingoBtn.title = this.hasClaimedBingo ? 
+                    'You have already claimed Bingo' : 
+                    'Complete a winning pattern first';
+            }
+        }
+    }
+
+    checkWinCondition() {
+        // Condition 1: Any row OR any column
+        let hasCompleteRow = false;
+        let hasCompleteColumn = false;
+
+        // Check rows
+        for (let row = 0; row < 5; row++) {
+            let rowComplete = true;
+            for (let col = 0; col < 5; col++) {
+                const index = row * 5 + col;
+                if (index !== 12 && !this.markedCells.has(index)) {
+                    rowComplete = false;
+                    break;
+                }
+            }
+            if (rowComplete) hasCompleteRow = true;
+        }
+
+        // Check columns
+        for (let col = 0; col < 5; col++) {
+            let colComplete = true;
+            for (let row = 0; row < 5; row++) {
+                const index = row * 5 + col;
+                if (index !== 12 && !this.markedCells.has(index)) {
+                    colComplete = false;
+                    break;
+                }
+            }
+            if (colComplete) hasCompleteColumn = true;
+        }
+
+        const condition1 = hasCompleteRow || hasCompleteColumn;
+
+        // Condition 2: Both diagonals
+        let mainDiagonalComplete = true;
+        let antiDiagonalComplete = true;
+        
+        for (let i = 0; i < 5; i++) {
+            const mainIndex = i * 5 + i;
+            const antiIndex = i * 5 + (4 - i);
+            if (mainIndex !== 12 && !this.markedCells.has(mainIndex)) mainDiagonalComplete = false;
+            if (antiIndex !== 12 && !this.markedCells.has(antiIndex)) antiDiagonalComplete = false;
+        }
+        
+        const condition2 = mainDiagonalComplete && antiDiagonalComplete

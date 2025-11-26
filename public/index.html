@@ -24,9 +24,10 @@
         <main>
             <div class="game-controls">
                 <button id="newGameBtn" class="btn primary">New Game</button>
-                <button id="autoMarkBtn" class="btn secondary">Auto Mark</button>
                 <button id="resetBtn" class="btn danger">Reset</button>
             </div>
+
+            <!-- Win condition indicators will be inserted here by JavaScript -->
 
             <div class="bingo-card">
                 <div class="bingo-header">
@@ -41,34 +42,39 @@
                 </div>
             </div>
 
+            <div class="game-instructions">
+                <h3>🎯 Win Conditions:</h3>
+                <ul>
+                    <li>Complete any <strong>Row OR Column</strong></li>
+                    <li>Complete <strong>Both Diagonals</strong></li>
+                    <li>Mark all <strong>Four Corners</strong></li>
+                </ul>
+                <p><em>Click on called numbers to mark them!</em></p>
+            </div>
+
             <div class="called-numbers">
-                <h3>Called Numbers</h3>
+                <h3>Called Numbers <span id="numbersCalled">0</span></h3>
                 <div class="numbers-grid" id="calledNumbers">
                     <!-- Called numbers will appear here -->
+                </div>
+            </div>
+
+            <div class="game-stats">
+                <div class="stat-item">
+                    <span>Marked Cells: </span>
+                    <span id="markedCount">0</span>/24
                 </div>
             </div>
 
             <div class="win-message hidden" id="winMessage">
                 <div class="win-content">
                     <h2>🎉 BINGO! 🎉</h2>
-                    <p>Congratulations! You've won!</p>
+                    <p id="winText">Congratulations! You've won!</p>
                     <button id="celebrateBtn" class="btn celebration">Celebrate!</button>
+                    <button id="newGameAfterWin" class="btn primary">Play Again</button>
                 </div>
             </div>
         </main>
-
-        <footer>
-            <div class="stats">
-                <div class="stat-item">
-                    <span>Numbers Called: </span>
-                    <span id="numbersCalled">0</span>
-                </div>
-                <div class="stat-item">
-                    <span>Marked: </span>
-                    <span id="markedCount">0</span>
-                </div>
-            </div>
-        </footer>
     </div>
 
     <script src="script.js"></script>

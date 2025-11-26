@@ -1,5 +1,13 @@
 class BingoGame {
     constructor() {
+         // Get backend URL from environment or use default
+        this.backendUrl = import.meta.env?.VITE_BACKEND_URL || 
+                         window.BACKEND_URL || 
+                         'https://backend-2-544g.onrender.com';
+        
+        this.socket = null;
+        this.gameId = null;
+        this.playerId = null;
         this.cells = [];
         this.calledNumbers = [];
         this.isGameActive = false;
